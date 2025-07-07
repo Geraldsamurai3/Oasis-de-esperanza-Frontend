@@ -1,8 +1,11 @@
-"use client"
+'use client'
 
+import React from 'react'
+import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from "@/InformativePage/components/ui/card"
 import { Music, Baby, GraduationCap, Heart, Users2 } from "lucide-react"
 import { useNavigate } from "react-router-dom"
+import { fadeUp, fadeIn } from "../animations/globalVariants"
 
 export default function Ministries() {
   const navigate = useNavigate()
@@ -57,37 +60,56 @@ export default function Ministries() {
   }
 
   return (
-    <section id="ministerios" className="py-16 bg-white">
+    <motion.section
+      id="ministerios"
+      className="py-16 bg-white"
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+      variants={fadeUp}
+    >
       <div className="container px-4 mx-auto">
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Nuestros Ministerios</h2>
+        <motion.div className="text-center mb-12" variants={fadeIn}>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            Nuestros Ministerios
+          </h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Tenemos ministerios para todas las edades y etapas de la vida. Encuentra tu lugar en nuestra familia.
           </p>
-        </div>
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+        </motion.div>
+
+        <motion.div
+          className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6"
+          variants={fadeUp}
+        >
           {ministerios.map((ministerio) => {
             const IconComponent = ministerio.icono
             return (
-              <Card
+              <motion.div
                 key={ministerio.id}
-                className="text-center hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95 h-full"
-                onClick={() => handleMinisterioClick(ministerio.ruta)}
+                variants={fadeIn}
               >
-                <CardHeader className="pb-3 sm:pb-4">
-                  <IconComponent className="h-10 w-10 sm:h-12 sm:w-12 text-sapphire-700 mx-auto mb-3 sm:mb-4" />
-                  <CardTitle className="hover:text-sapphire-700 transition-colors text-lg sm:text-xl">
-                    {ministerio.titulo}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="px-4 sm:px-6">
-                  <p className="text-gray-600 text-sm sm:text-base">{ministerio.descripcion}</p>
-                </CardContent>
-              </Card>
+                <Card
+                  className="text-center hover:shadow-lg transition-all duration-300 cursor-pointer hover:scale-105 active:scale-95 h-full"
+                  onClick={() => handleMinisterioClick(ministerio.ruta)}
+                >
+                  <CardHeader className="pb-3 sm:pb-4">
+                    <IconComponent className="h-10 w-10 sm:h-12 sm:w-12 text-sapphire-700 mx-auto mb-3 sm:mb-4" />
+                    <CardTitle className="hover:text-sapphire-700 transition-colors text-lg sm:text-xl">
+                      {ministerio.titulo}
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="px-4 sm:px-6">
+                    <p className="text-gray-600 text-sm sm:text-base">
+                      {ministerio.descripcion}
+                    </p>
+                  </CardContent>
+                </Card>
+              </motion.div>
             )
           })}
-        </div>
+        </motion.div>
       </div>
-    </section>
+    </motion.section>
   )
 }

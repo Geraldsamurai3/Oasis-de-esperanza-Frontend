@@ -1,7 +1,6 @@
 "use client"
 
 import { useParams, Navigate } from "react-router-dom"
-import CloudinaryImage from "../components/cloudinary-image"
 import { Button } from "@/InformativePage/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/InformativePage/components/ui/card"
 import { ministries } from "../data/ministries"

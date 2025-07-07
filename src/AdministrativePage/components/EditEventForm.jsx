@@ -7,10 +7,11 @@ import { Input } from "@/InformativePage/components/ui/input"
 import { Textarea } from "@/InformativePage/components/ui/textarea"
 import { Button } from "@/InformativePage/components/ui/button"
 import { updateEventRequest } from "../Services/eventsService"
+import Swal from "sweetalert2"
+import "sweetalert2/dist/sweetalert2.min.css"
 
 export default function EditEventForm({ event, onSuccess, onCancel }) {
-  // fecha de hoy en YYYY-MM-DD
-  const today = new Date().toISOString().split("T")[0]
+  const today = new Date().toISOString().split("T")[0]  // YYYY-MM-DD
 
   const {
     register,
@@ -20,18 +21,20 @@ export default function EditEventForm({ event, onSuccess, onCancel }) {
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
-      title:       event.title,
-      location:    event.location,
-      startDate:   event.startDate?.split("T")[0] || today,
-      endDate:     event.endDate?.split("T")[0]   || "",
-      startTime:   event.startTime || "",
-      endTime:     event.endTime   || "",
-      description: event.description,
-      image:       null,
+      title:          event.title,
+      location:       event.location,
+      startDate:      event.startDate?.split("T")[0] || today,
+      endDate:        event.endDate  ? event.endDate.split("T")[0] : "",
+      // recorta segundos para matchear HH:MM
+      startTime:      event.startTime?.slice(0,5) || "",
+      endTime:        event.endTime?.slice(0,5)   || "",
+      description:    event.description,
+      additionalLink: event.additionalLink || "",
+      image:          null,
     },
   })
 
-  // valores para validación cruzada
+  // watchers para validación cruzada
   const watchStartDate = watch("startDate")
   const watchEndDate   = watch("endDate")
   const watchStartTime = watch("startTime")
@@ -43,16 +46,25 @@ export default function EditEventForm({ event, onSuccess, onCancel }) {
     setServerError("")
     try {
       const form = new FormData()
-      form.append("title",       data.title)
-      form.append("location",    data.location)
-      form.append("startDate",   data.startDate)
-      if (data.endDate) form.append("endDate", data.endDate)
-      if (data.startTime) form.append("startTime", data.startTime)
-      if (data.endTime) form.append("endTime", data.endTime)
-      form.append("description", data.description)
-      if (data.image?.[0]) form.append("image", data.image[0])
+      form.append("title",          data.title)
+      form.append("location",       data.location)
+      form.append("startDate",      data.startDate)
+      if (data.endDate)            form.append("endDate",   data.endDate)
+      if (data.startTime)          form.append("startTime", data.startTime)
+      if (data.endTime)            form.append("endTime",   data.endTime)
+      form.append("description",    data.description)
+      if (data.additionalLink)     form.append("additionalLink", data.additionalLink)
+      if (data.image?.[0])         form.append("image", data.image[0])
 
       await updateEventRequest(event.id, form)
+
+      await Swal.fire({
+        title: "Evento actualizado",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+      })
+
       onSuccess()
     } catch (err) {
       const msg = err.message || "Error desconocido"
@@ -104,6 +116,7 @@ export default function EditEventForm({ event, onSuccess, onCancel }) {
 
       {/* Fechas */}
       <div className="grid grid-cols-2 gap-4">
+        {/* Inicio */}
         <div>
           <label className="block text-sm font-medium mb-1">Fecha inicio</label>
           <Input
@@ -121,11 +134,14 @@ export default function EditEventForm({ event, onSuccess, onCancel }) {
             <p className="text-base text-red-600 mt-1">{errors.startDate.message}</p>
           )}
         </div>
+        {/* Fin (opcional) */}
         <div>
-          <label className="block text-sm font-medium mb-1">Fecha fin</label>
+          <label className="block text-sm font-medium mb-1">
+            Fecha fin <span className="text-xs text-gray-500">(opcional)</span>
+          </label>
           <Input
             type="date"
-            min={watchStartDate || today}
+            min={watchStartDate}
             className={inputClasses}
             {...register("endDate", {
               validate: value =>
@@ -141,6 +157,7 @@ export default function EditEventForm({ event, onSuccess, onCancel }) {
 
       {/* Horas */}
       <div className="grid grid-cols-2 gap-4">
+        {/* Inicio */}
         <div>
           <label className="block text-sm font-medium mb-1">Hora inicio</label>
           <Input
@@ -156,6 +173,7 @@ export default function EditEventForm({ event, onSuccess, onCancel }) {
             <p className="text-base text-red-600 mt-1">{errors.startTime.message}</p>
           )}
         </div>
+        {/* Fin */}
         <div>
           <label className="block text-sm font-medium mb-1">Hora fin</label>
           <Input
@@ -179,16 +197,27 @@ export default function EditEventForm({ event, onSuccess, onCancel }) {
         <Textarea
           rows={4}
           className={inputClasses}
-          {...register("description", {
-            required: "La descripción es obligatoria"
-          })}
+          {...register("description", { required: "La descripción es obligatoria" })}
         />
         {errors.description && (
           <p className="text-base text-red-600 mt-1">{errors.description.message}</p>
         )}
       </div>
 
-      {/* Imagen */}
+      {/* Enlace adicional (opcional) */}
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          Enlace adicional <span className="text-xs text-gray-500">(opcional)</span>
+        </label>
+        <Input
+          type="url"
+          className={inputClasses}
+          placeholder="https://"
+          {...register("additionalLink")}
+        />
+      </div>
+
+      {/* Cambiar imagen */}
       <div>
         <label className="block text-sm font-medium mb-1">Cambiar imagen</label>
         <Input
@@ -202,7 +231,7 @@ export default function EditEventForm({ event, onSuccess, onCancel }) {
         </p>
       </div>
 
-      {/* Botones */}
+      {/* Controles */}
       <div className="flex justify-end space-x-2 pt-4 border-t">
         <Button
           variant="outline"

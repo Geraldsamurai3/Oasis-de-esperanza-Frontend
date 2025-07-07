@@ -7,10 +7,12 @@ import { Input } from "@/InformativePage/components/ui/input"
 import { Textarea } from "@/InformativePage/components/ui/textarea"
 import { Button } from "@/InformativePage/components/ui/button"
 import { createEventRequest } from "../Services/eventsService"
+import Swal from "sweetalert2"
+import "sweetalert2/dist/sweetalert2.min.css"
 
 export default function AddEventForm({ onSuccess, onCancel }) {
-  const today = new Date().toISOString().split("T")[0]  // YYYY-MM-DD
-  
+  const today = new Date().toISOString().split("T")[0] // YYYY-MM-DD
+
   const {
     register,
     handleSubmit,
@@ -19,20 +21,21 @@ export default function AddEventForm({ onSuccess, onCancel }) {
     formState: { errors, isSubmitting },
   } = useForm({
     defaultValues: {
-      title:       "",
-      location:    "",
-      startDate:   today,
-      endDate:     "",
-      startTime:   "",
-      endTime:     "",
-      description: "",
-      image:       null,
+      title:          "",
+      location:       "",
+      startDate:      today,
+      endDate:        "",
+      startTime:      "",
+      endTime:        "",
+      description:    "",
+      image:          null,
+      additionalLink: "",
     },
   })
 
   const [serverError, setServerError] = useState("")
 
-  // Para validación cruzada
+  // watchers para validación cruzada
   const watchStartDate = watch("startDate")
   const watchEndDate   = watch("endDate")
   const watchStartTime = watch("startTime")
@@ -45,13 +48,22 @@ export default function AddEventForm({ onSuccess, onCancel }) {
       form.append("title", data.title)
       form.append("location", data.location)
       form.append("startDate", data.startDate)
-      if (data.endDate)   form.append("endDate",   data.endDate)
-      if (data.startTime) form.append("startTime", data.startTime)
-      if (data.endTime)   form.append("endTime",   data.endTime)
+      if (data.endDate)       form.append("endDate",   data.endDate)
+      if (data.startTime)     form.append("startTime", data.startTime)
+      if (data.endTime)       form.append("endTime",   data.endTime)
       form.append("description", data.description)
-      if (data.image?.[0]) form.append("image", data.image[0])
+      if (data.additionalLink) form.append("additionalLink", data.additionalLink)
+      if (data.image?.[0])      form.append("image", data.image[0])
 
       await createEventRequest(form)
+
+      Swal.fire({
+        title: "Evento creado",
+        icon: "success",
+        timer: 2000,
+        showConfirmButton: false,
+      })
+
       onSuccess()
     } catch (err) {
       const msg = err.message || "Error desconocido"
@@ -108,6 +120,7 @@ export default function AddEventForm({ onSuccess, onCancel }) {
 
       {/* Fechas */}
       <div className="grid grid-cols-2 gap-4">
+        {/* Fecha inicio */}
         <div>
           <label className="block text-sm font-medium mb-1">Fecha inicio</label>
           <Input
@@ -117,7 +130,7 @@ export default function AddEventForm({ onSuccess, onCancel }) {
             {...register("startDate", {
               required: "La fecha de inicio es obligatoria",
               validate: value =>
-                !watchEndDate || value <= watchEndDate ||
+                (!watchEndDate || value <= watchEndDate) ||
                 "La fecha inicio no puede ser posterior a la fecha fin"
             })}
           />
@@ -127,15 +140,18 @@ export default function AddEventForm({ onSuccess, onCancel }) {
             </p>
           )}
         </div>
+        {/* Fecha fin (opcional) */}
         <div>
-          <label className="block text-sm font-medium mb-1">Fecha fin</label>
+          <label className="block text-sm font-medium mb-1">
+            Fecha fin <span className="text-xs text-gray-500">(opcional)</span>
+          </label>
           <Input
             type="date"
             min={watchStartDate}
             className={inputClasses}
             {...register("endDate", {
               validate: value =>
-                !value || value >= watchStartDate ||
+                (!value || value >= watchStartDate) ||
                 "La fecha fin no puede ser anterior a la fecha inicio"
             })}
           />
@@ -149,14 +165,16 @@ export default function AddEventForm({ onSuccess, onCancel }) {
 
       {/* Horas */}
       <div className="grid grid-cols-2 gap-4">
+        {/* Hora inicio */}
         <div>
           <label className="block text-sm font-medium mb-1">Hora inicio</label>
           <Input
             type="time"
             className={inputClasses}
             {...register("startTime", {
+              required: "La hora de inicio es obligatoria",
               validate: value =>
-                !watchEndTime || value <= watchEndTime ||
+                (!watchEndTime || value <= watchEndTime) ||
                 "La hora inicio no puede ser posterior a la hora fin"
             })}
           />
@@ -166,14 +184,16 @@ export default function AddEventForm({ onSuccess, onCancel }) {
             </p>
           )}
         </div>
+        {/* Hora fin */}
         <div>
           <label className="block text-sm font-medium mb-1">Hora fin</label>
           <Input
             type="time"
             className={inputClasses}
             {...register("endTime", {
+              required: "La hora de fin es obligatoria",
               validate: value =>
-                !watchStartTime || value >= watchStartTime ||
+                (!watchStartTime || value >= watchStartTime) ||
                 "La hora fin no puede ser anterior a la hora inicio"
             })}
           />
@@ -200,6 +220,19 @@ export default function AddEventForm({ onSuccess, onCancel }) {
             {errors.description.message}
           </p>
         )}
+      </div>
+
+      {/* Enlace adicional (opcional) */}
+      <div>
+        <label className="block text-sm font-medium mb-1">
+          Enlace adicional <span className="text-xs text-gray-500">(opcional)</span>
+        </label>
+        <Input
+          type="url"
+          className={inputClasses}
+          placeholder="https://"
+          {...register("additionalLink")}
+        />
       </div>
 
       {/* Imagen */}

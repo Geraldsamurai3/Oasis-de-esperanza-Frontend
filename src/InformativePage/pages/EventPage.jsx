@@ -1,7 +1,6 @@
 "use client"
 
 import { useParams } from "react-router-dom"
-import CloudinaryImage from "../components/cloudinary-image"
 import { Button } from "@/InformativePage/components/ui/button"
 import { Badge } from "@/InformativePage/components/ui/badge"
 import { Calendar, Clock, MapPin, Users, Phone, Mail } from "lucide-react"

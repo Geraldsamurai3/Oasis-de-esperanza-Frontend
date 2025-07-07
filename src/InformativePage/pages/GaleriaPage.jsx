@@ -1,4 +1,3 @@
-import CloudinaryImage from "../components/cloudinary-image"
 import { Card } from "@/InformativePage/components/ui/card"
 
 const galleryAlbums = [

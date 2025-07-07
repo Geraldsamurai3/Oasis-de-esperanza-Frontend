@@ -6,7 +6,7 @@ import { Button } from "@/InformativePage/components/ui/button"
 import AddEventForm from "@/AdministrativePage/components/AddEventForm"
 import EditEventForm from "@/AdministrativePage/components/EditEventForm"
 import { useEvents } from "../../hooks/useEvents"
-import { MapPin, Calendar, Clock } from "lucide-react"
+import { MapPin, Calendar, Clock, Link as LinkIcon } from "lucide-react"
 import Swal from "sweetalert2"
 import "sweetalert2/dist/sweetalert2.min.css"
 
@@ -22,18 +22,18 @@ export default function EventsPage() {
     removeEvent,
   } = useEvents()
 
-  const [isAdding, setIsAdding] = useState(false)
+  const [isAdding, setIsAdding]       = useState(false)
   const [editingEvent, setEditingEvent] = useState(null)
-  const [currentPage, setCurrentPage] = useState(1)
+  const [currentPage, setCurrentPage]   = useState(1)
 
   const handleDelete = async (id) => {
     const result = await Swal.fire({
       title: "¿Estás seguro?",
-      text: "¡No podrás revertir esto!",
-      icon: "warning",
+      text:  "¡No podrás revertir esto!",
+      icon:  "warning",
       showCancelButton: true,
       confirmButtonText: "Sí, eliminar",
-      cancelButtonText: "Cancelar",
+      cancelButtonText:  "Cancelar",
     })
     if (result.isConfirmed) {
       await removeEvent(id)
@@ -49,14 +49,14 @@ export default function EventsPage() {
     return `${d}/${m}/${y}`
   }
 
-  const totalPages = Math.ceil(events.length / ITEMS_PER_PAGE)
+  const totalPages     = Math.ceil(events.length / ITEMS_PER_PAGE)
   const paginatedEvents = events.slice(
     (currentPage - 1) * ITEMS_PER_PAGE,
     currentPage * ITEMS_PER_PAGE
   )
 
   if (loading) return <p className="p-6 text-lg">Cargando eventos...</p>
-  if (error) return <p className="p-6 text-red-600 text-lg">Error: {error.message}</p>
+  if (error)   return <p className="p-6 text-red-600 text-lg">Error: {error.message}</p>
 
   return (
     <div className="p-6 space-y-6">
@@ -142,6 +142,19 @@ export default function EventsPage() {
               <p className="text-gray-700 mb-4 max-h-32 overflow-auto">
                 {evt.description}
               </p>
+
+              {/* Enlace adicional (si existe) */}
+              {evt.additionalLink && (
+                <a
+                  href={evt.additionalLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-sapphire-600 hover:underline mb-4"
+                >
+                  <LinkIcon className="mr-1" size={16} />
+                  Ir al enlace
+                </a>
+              )}
 
               {/* Botones */}
               <div className="mt-auto flex justify-end space-x-3">

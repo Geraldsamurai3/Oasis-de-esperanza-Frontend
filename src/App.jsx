@@ -11,8 +11,7 @@ import PastoresPage from "./InformativePage/pages/PastoresPage"
 import GaleriaPage from "./InformativePage/pages/GaleriaPage"
 import ContactoPage from "./InformativePage/pages/ContactoPage"
 
-// Informative Components
-import Header from "./InformativePage/components/Header"
+import Header from "./InformativePage/components/header"// Informative Components
 import Footer from "./InformativePage/components/Footer"
 
 // Administrative Pages

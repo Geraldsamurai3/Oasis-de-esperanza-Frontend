@@ -1,7 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/InformativePage/components/ui/card"
 import { Badge } from "@/InformativePage/components/ui/badge"
 import { Button } from "@/InformativePage/components/ui/button"
-import CloudinaryImage from "../components/cloudinary-image"
 import { Link } from "react-router-dom"
 import { Calendar, Clock, MapPin } from "lucide-react"
 

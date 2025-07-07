@@ -1,5 +1,4 @@
 import { pastors } from "../data/pastors"
-import CloudinaryImage from "../components/cloudinary-image"
 import { Card, CardContent } from "@/InformativePage/components/ui/card"
 import { Badge } from "@/InformativePage/components/ui/badge"
 import { Heart, BookOpen, Phone, Mail, Users } from "lucide-react"

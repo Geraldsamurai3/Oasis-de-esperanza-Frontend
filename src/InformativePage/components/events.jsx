@@ -5,14 +5,16 @@ import React, { useState, useEffect } from "react"
 import { fetchPublicEvents } from "@/services/publicEventsService"
 import { Button } from "@/InformativePage/components/ui/button"
 import { Badge } from "@/InformativePage/components/ui/badge"
-import { Clock, ChevronLeft, ChevronRight, MapPin } from "lucide-react"
+import { Clock, ChevronLeft, ChevronRight, MapPin, Link as LinkIcon } from "lucide-react"
+import { motion } from 'framer-motion'
+import { fadeUp, fadeIn } from "../animations/globalVariants"
 
 export default function Events() {
-  const [events, setEvents]       = useState([])
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState(null)
+  const [events, setEvents]           = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [error, setError]             = useState(null)
   const [currentPage, setCurrentPage] = useState(0)
-  const [showAll, setShowAll]     = useState(false)
+  const [showAll, setShowAll]         = useState(false)
 
   const perPage = 3
 
@@ -37,7 +39,10 @@ export default function Events() {
   const totalPages = Math.ceil(events.length / perPage)
   const slice = showAll
     ? events
-    : events.slice(currentPage * perPage, (currentPage + 1) * perPage)
+    : events.slice(
+        currentPage * perPage,
+        (currentPage + 1) * perPage
+      )
 
   const prevPage = () =>
     setCurrentPage(p => Math.max(0, p - 1))
@@ -45,10 +50,17 @@ export default function Events() {
     setCurrentPage(p => Math.min(totalPages - 1, p + 1))
 
   return (
-    <section id="eventos" className="py-16 bg-gray-50">
+    <motion.section
+      id="eventos"
+      className="py-16 bg-gray-50"
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+      variants={fadeUp}
+    >
       <div className="container px-4 mx-auto">
         {/* Header */}
-        <div className="text-center mb-12">
+        <motion.div className="text-center mb-12" variants={fadeIn}>
           <h2 className="text-3xl font-bold text-gray-900 mb-4">Próximos Eventos</h2>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Mantente al día con nuestras actividades especiales y eventos comunitarios.
@@ -58,27 +70,37 @@ export default function Events() {
               {events.length} eventos programados
             </Badge>
           </div>
-        </div>
+        </motion.div>
 
         {/* Cards */}
-        <div className={`grid gap-6 mb-8 ${
-            showAll ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" : "sm:grid-cols-2 lg:grid-cols-3"
-          }`}>
+        <motion.div
+          className={`grid gap-6 mb-8 ${
+            showAll
+              ? "sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+              : "sm:grid-cols-2 lg:grid-cols-3"
+          }`}
+          variants={fadeUp}
+        >
           {slice.map(evt => (
-            <div key={evt.id}
-                 className="flex flex-col bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition h-full">
+            <motion.div
+              key={evt.id}
+              variants={fadeIn}
+              className="flex flex-col bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition h-full"
+            >
               <div className="w-full h-48 bg-gray-100 overflow-hidden">
-                {evt.imageUrl
-                  ? <img
-                      src={evt.imageUrl}
-                      alt={evt.title}
-                      className="w-full h-full object-cover"
-                    />
-                  : <div className="w-full h-full flex items-center justify-center text-gray-400">
-                      Sin imagen
-                    </div>
-                }
+                {evt.imageUrl ? (
+                  <img
+                    src={evt.imageUrl}
+                    alt={evt.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    Sin imagen
+                  </div>
+                )}
               </div>
+
               <div className="p-5 flex flex-col flex-1">
                 <Badge className="w-fit bg-sapphire-100 text-sapphire-800 text-xs mb-2">
                   {evt.startDate.split("-").reverse().join("/")}
@@ -96,13 +118,25 @@ export default function Events() {
                   {evt.startTime.slice(0,5)}
                   {evt.endTime && ` – ${evt.endTime.slice(0,5)}`}
                 </div>
+
+                {evt.additionalLink && (
+                  <a
+                    href={evt.additionalLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-sapphire-600 hover:underline mb-4"
+                  >
+                    <LinkIcon className="mr-1" size={14} />
+                    Ir al enlace
+                  </a>
+                )}
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
 
         {/* Pagination & Toggle */}
-        <div className="flex flex-col items-center gap-4">
+        <motion.div className="flex flex-col items-center gap-4" variants={fadeIn}>
           {!showAll && totalPages > 1 && (
             <div className="flex items-center space-x-3">
               <Button
@@ -137,8 +171,8 @@ export default function Events() {
               ? "Ver menos eventos"
               : `Ver todos los eventos (${events.length})`}
           </Button>
-        </div>
+        </motion.div>
       </div>
-    </section>
+    </motion.section>
   )
 }

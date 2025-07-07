@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/InformativePage/components/ui/card"
-import CloudinaryImage from "../components/cloudinary-image"
 import { Link } from "react-router-dom"
 import { ministries } from "../data/ministries"
 
