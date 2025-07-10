@@ -1,145 +1,165 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/InformativePage/components/ui/card"
-import { Badge } from "@/InformativePage/components/ui/badge"
+// src/InformativePage/pages/Events.jsx
+"use client"
+
+import React, { useState, useEffect } from "react"
+import { fetchPublicEvents } from "@/services/publicEventsService"
 import { Button } from "@/InformativePage/components/ui/button"
-import { Link } from "react-router-dom"
-import { Calendar, Clock, MapPin } from "lucide-react"
+import { Badge } from "@/InformativePage/components/ui/badge"
+import { Clock, MapPin, Link as LinkIcon } from "lucide-react"
+import { motion } from 'framer-motion'
+import { fadeUp, fadeIn } from "../animations/globalVariants"
 
-const events = [
-  {
-    id: 1,
-    title: "Conferencia de Fe 2024",
-    description: "Tres días de enseñanza, adoración y comunión con invitados especiales.",
-    date: "2024-03-15",
-    time: "19:00",
-    location: "Santuario Principal",
-    image: "iglesia/eventos/conferencia-2024",
-    featured: true,
-  },
-  {
-    id: 2,
-    title: "Retiro Familiar",
-    description: "Un fin de semana especial para fortalecer los lazos familiares en la fe.",
-    date: "2024-03-22",
-    time: "09:00",
-    location: "Centro de Retiros",
-    image: "iglesia/eventos/retiro-familiar",
-    featured: false,
-  },
-  {
-    id: 3,
-    title: "Noche de Oración",
-    description: "Una noche especial dedicada a la oración e intercesión.",
-    date: "2024-03-28",
-    time: "20:00",
-    location: "Santuario Principal",
-    image: "iglesia/eventos/noche-oracion",
-    featured: false,
-  },
-]
+export default function Events() {
+  const [events, setEvents]   = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
 
-export default function EventosPage() {
-  const featuredEvents = events.filter((event) => event.featured)
-  const regularEvents = events.filter((event) => !event.featured)
+  useEffect(() => {
+    async function load() {
+      try {
+        setLoading(true)
+        const data = await fetchPublicEvents()
+        setEvents(data)
+      } catch (err) {
+        setError(err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [])
+
+  if (loading) return <p className="p-6 text-lg">Cargando eventos…</p>
+  if (error)   return <p className="p-6 text-red-600 text-lg">Error: {error.message}</p>
+
+  const now   = new Date()
+  const limit = new Date(now)
+  limit.setDate(limit.getDate() + 5)
+
+  // Solo futuros
+  const upcoming = events
+    .map(evt => ({ ...evt, start: new Date(evt.startDate) }))
+    .filter(evt => evt.start >= now)
+    .sort((a,b) => a.start - b.start)
+
+  // Destacados: dentro de los próximos 5 días
+  const featured = upcoming.filter(evt => evt.start <= limit)
 
   return (
-    <main>
-      {/* Hero */}
-      <section className="py-20 bg-gradient-to-br from-sapphire-50 to-blue-50">
-        <div className="container px-4 mx-auto text-center">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">Próximos Eventos</h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Únete a nosotros en nuestras actividades especiales y eventos comunitarios.
-          </p>
-        </div>
-      </section>
+    <motion.section
+      id="eventos"
+      className="py-16 bg-gray-50"
+      initial="hidden"
+      animate="visible"
+      exit="hidden"
+      variants={fadeUp}
+    >
+      <div className="container px-4 mx-auto">
 
-      {/* Featured Events */}
-      {featuredEvents.length > 0 && (
-        <section className="py-16 bg-white">
-          <div className="container px-4 mx-auto">
-            <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Eventos Destacados</h2>
-            <div className="grid lg:grid-cols-2 gap-8">
-              {featuredEvents.map((event) => (
-                <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="relative h-64">
-                    <CloudinaryImage
-                      publicId={event.image}
-                      alt={event.title}
-                      transformation="hero"
-                      className="w-full h-full"
-                    />
-                    <Badge className="absolute top-4 left-4 bg-sapphire-700">Destacado</Badge>
+        {/* --- Eventos Destacados --- */}
+        {featured.length > 0 && (
+          <motion.div variants={fadeIn} className="mb-12">
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Eventos Destacados (próximos 5 días)
+            </h2>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featured.map(evt => (
+                <motion.div
+                  key={evt.id}
+                  variants={fadeIn}
+                  className="flex flex-col bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition h-full"
+                >
+                  <div className="w-full h-48 bg-gray-100 overflow-hidden">
+                    {evt.imageUrl
+                      ? <img src={evt.imageUrl} alt={evt.title} className="w-full h-full object-cover" />
+                      : <div className="w-full h-full flex items-center justify-center text-gray-400">Sin imagen</div>
+                    }
                   </div>
-                  <CardHeader>
-                    <CardTitle className="text-xl">{event.title}</CardTitle>
-                    <p className="text-gray-600">{event.description}</p>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    <div className="flex items-center text-gray-600">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      {new Date(event.date).toLocaleDateString("es-ES", {
-                        weekday: "long",
-                        year: "numeric",
-                        month: "long",
-                        day: "numeric",
-                      })}
+                  <div className="p-5 flex flex-col flex-1">
+                    <Badge className="w-fit bg-sapphire-100 text-sapphire-800 text-xs mb-2">
+                      {evt.start.toLocaleDateString("es-ES")}
+                    </Badge>
+                    <h3 className="text-lg font-semibold mb-2">{evt.title}</h3>
+                    <p className="text-gray-600 flex items-center mb-4">
+                      <MapPin className="mr-1" size={14} /> {evt.location}
+                    </p>
+                    <p className="text-gray-700 flex-grow mb-4">{evt.description}</p>
+                    <div className="flex items-center text-gray-600 mb-4">
+                      <Clock className="mr-1" size={14} /> {evt.startTime.slice(0,5)}
+                      {evt.endTime && ` – ${evt.endTime.slice(0,5)}`}
                     </div>
-                    <div className="flex items-center text-gray-600">
-                      <Clock className="h-4 w-4 mr-2" />
-                      {event.time}
-                    </div>
-                    <div className="flex items-center text-gray-600">
-                      <MapPin className="h-4 w-4 mr-2" />
-                      {event.location}
-                    </div>
-                    <Link to={`/eventos/${event.id}`}>
-                      <Button className="w-full bg-sapphire-700 hover:bg-sapphire-800">Ver Detalles</Button>
-                    </Link>
-                  </CardContent>
-                </Card>
+                    {evt.additionalLink && (
+                      <a
+                        href={evt.additionalLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center text-sapphire-600 hover:underline"
+                      >
+                        <LinkIcon className="mr-1" size={14} /> Enlace
+                      </a>
+                    )}
+                  </div>
+                </motion.div>
               ))}
             </div>
-          </div>
-        </section>
-      )}
+          </motion.div>
+        )}
 
-      {/* Regular Events */}
-      <section className="py-16 bg-gray-50">
-        <div className="container px-4 mx-auto">
-          <h2 className="text-3xl font-bold text-gray-900 mb-8 text-center">Todos los Eventos</h2>
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-            {regularEvents.map((event) => (
-              <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative h-48">
-                  <CloudinaryImage
-                    publicId={event.image}
-                    alt={event.title}
-                    transformation="card"
-                    className="w-full h-full"
-                  />
-                </div>
-                <CardHeader>
-                  <CardTitle>{event.title}</CardTitle>
-                  <p className="text-gray-600 text-sm">{event.description}</p>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex items-center text-gray-600 text-sm">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    {new Date(event.date).toLocaleDateString("es-ES")}
-                  </div>
-                  <div className="flex items-center text-gray-600 text-sm">
-                    <Clock className="h-4 w-4 mr-2" />
-                    {event.time}
-                  </div>
-                  <Link to={`/eventos/${event.id}`}>
-                    <Button className="w-full bg-sapphire-700 hover:bg-sapphire-800 mt-4">Ver Detalles</Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
+        {/* --- Próximos Eventos (todos) --- */}
+        <motion.div variants={fadeIn} className="text-center mb-12">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">Próximos Eventos</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto">
+            Mantente al día con nuestras actividades especiales y eventos comunitarios.
+          </p>
+          <div className="flex justify-center mt-6">
+            <Badge variant="outline" className="text-sapphire-600 border-sapphire-600">
+              {upcoming.length} eventos programados
+            </Badge>
           </div>
-        </div>
-      </section>
-    </main>
+        </motion.div>
+
+        <motion.div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3" variants={fadeUp}>
+          {upcoming.map(evt => (
+            <motion.div
+              key={evt.id}
+              variants={fadeIn}
+              className="flex flex-col bg-white rounded-xl shadow-md overflow-hidden hover:shadow-lg transition h-full"
+            >
+              <div className="w-full h-48 bg-gray-100 overflow-hidden">
+                {evt.imageUrl
+                  ? <img src={evt.imageUrl} alt={evt.title} className="w-full h-full object-cover" />
+                  : <div className="w-full h-full flex items-center justify-center text-gray-400">Sin imagen</div>
+                }
+              </div>
+              <div className="p-5 flex flex-col flex-1">
+                <Badge className="w-fit bg-sapphire-100 text-sapphire-800 text-xs mb-2">
+                  {evt.start.toLocaleDateString("es-ES")}
+                </Badge>
+                <h3 className="text-lg font-semibold mb-2">{evt.title}</h3>
+                <p className="text-gray-600 flex items-center mb-4">
+                  <MapPin className="mr-1" size={14} /> {evt.location}
+                </p>
+                <p className="text-gray-700 flex-grow mb-4">{evt.description}</p>
+                <div className="flex items-center text-gray-600 mb-4">
+                  <Clock className="mr-1" size={14} /> {evt.startTime.slice(0,5)}
+                  {evt.endTime && ` – ${evt.endTime.slice(0,5)}`}
+                </div>
+                {evt.additionalLink && (
+                  <a
+                    href={evt.additionalLink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center text-sapphire-600 hover:underline"
+                  >
+                    <LinkIcon className="mr-1" size={14} /> Enlace
+                  </a>
+                )}
+              </div>
+            </motion.div>
+          ))}
+        </motion.div>
+
+      </div>
+    </motion.section>
   )
 }

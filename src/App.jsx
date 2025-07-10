@@ -6,7 +6,6 @@ import HomePage from "./InformativePage/pages/HomePage"
 import MinisteriosPage from "./InformativePage/pages/MinisteriosPage"
 import MinistryPage from "./InformativePage/pages/MinistryPage"
 import EventosPage from "./InformativePage/pages/EventosPage"
-import EventPage from "./InformativePage/pages/EventPage"
 import PastoresPage from "./InformativePage/pages/PastoresPage"
 import GaleriaPage from "./InformativePage/pages/GaleriaPage"
 import ContactoPage from "./InformativePage/pages/ContactoPage"
@@ -77,16 +76,7 @@ function App() {
                 </div>
               }
             />
-            <Route
-              path="/eventos/:id"
-              element={
-                <div className="min-h-screen bg-white">
-                  <Header />
-                  <EventPage />
-                  <Footer />
-                </div>
-              }
-            />
+            
             <Route
               path="/pastores"
               element={
@@ -98,15 +88,18 @@ function App() {
               }
             />
             <Route
-              path="/galeria"
-              element={
-                <div className="min-h-screen bg-white">
-                  <Header />
-                  <GaleriaPage />
-                  <Footer />
-                </div>
-              }
-            />
+  path="/galeria"
+  element={
+    <div className="flex flex-col min-h-screen bg-white">
+      <Header />
+      {/* Aquí envolvemos GaleriaPage en un main que crece para empujar al footer */}
+      <main className="flex-grow">
+        <GaleriaPage />
+      </main>
+      <Footer />
+    </div>
+  }
+/>
             <Route
               path="/contacto"
               element={

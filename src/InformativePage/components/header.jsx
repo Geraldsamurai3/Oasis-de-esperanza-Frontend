@@ -68,12 +68,12 @@ export default function Header() {
           </button>
           <button
             onClick={() => {
-              navigate("/#sobre-nosotros")
+              navigate("/galeria")
               window.scrollTo(0, 0)
             }}
             className="text-sm font-medium hover:text-sapphire-700 transition-colors"
           >
-            Sobre Nosotros
+            Galeria
           </button>
 
           <DropdownMenu>

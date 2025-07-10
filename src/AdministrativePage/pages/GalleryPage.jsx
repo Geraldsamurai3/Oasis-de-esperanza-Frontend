@@ -1,298 +1,410 @@
+// src/AdministrativePage/components/GalleryPage.jsx
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/InformativePage/components/ui/card"
+import React, { useState, useEffect } from "react"
+import Swal from "sweetalert2"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/InformativePage/components/ui/card"
 import { Button } from "@/InformativePage/components/ui/button"
 import { Input } from "@/InformativePage/components/ui/input"
-import { Badge } from "@/InformativePage/components/ui/badge"
-import { Search, Images, Upload, Edit, Trash2, MoreHorizontal, Eye, Download, FolderPlus } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/InformativePage/components/ui/dropdown-menu"
+import {
+  Search,
+  Images,
+  Upload,
+  Trash2,
+  MoreHorizontal,
+  Eye,
+  FolderPlus,
+} from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/InformativePage/components/ui/dropdown-menu"
+
+import { useCategories } from "../hooks/useCategories"
+import { useGalleryItems } from "../hooks/useGalleryItems"
+import { getGalleryItemsByCategoryRequest } from "../Services/galleryService"
+
+const ITEMS_PER_PAGE = 12
 
 export default function GalleryPage() {
-  const [categories, setCategories] = useState([
-    {
-      id: 1,
-      name: "Servicios Dominicales",
-      description: "Momentos especiales de adoración y comunión",
-      imageCount: 24,
-      coverImage: "iglesia/galeria/servicios/cover",
-      createdAt: "2024-01-01",
-      status: "Activa",
-    },
-    {
-      id: 2,
-      name: "Eventos Especiales",
-      description: "Conferencias, retiros y celebraciones",
-      imageCount: 18,
-      coverImage: "iglesia/galeria/eventos/cover",
-      createdAt: "2024-01-15",
-      status: "Activa",
-    },
-    {
-      id: 3,
-      name: "Ministerios en Acción",
-      description: "Nuestros ministerios sirviendo a la comunidad",
-      imageCount: 32,
-      coverImage: "iglesia/galeria/ministerios/cover",
-      createdAt: "2023-12-10",
-      status: "Activa",
-    },
-    {
-      id: 4,
-      name: "Vida Comunitaria",
-      description: "Momentos cotidianos de nuestra familia de fe",
-      imageCount: 15,
-      coverImage: "iglesia/galeria/comunidad/cover",
-      createdAt: "2023-11-20",
-      status: "Borrador",
-    },
-  ])
+  // --- Categorías ---
+  const {
+    categories,
+    loading: loadingCats,
+    error: errorCats,
+    fetchCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+  } = useCategories()
 
+  // --- Fotos ---
+  const {
+    items,
+    loading: loadingItems,
+    error: errorItems,
+    fetchItemsByCategory,
+    uploadItem,
+    deleteItem,
+  } = useGalleryItems()
+
+  // UI state
   const [searchTerm, setSearchTerm] = useState("")
-  const [filterStatus, setFilterStatus] = useState("Todas")
-  const [showCreateForm, setShowCreateForm] = useState(false)
-  const [selectedCategory, setSelectedCategory] = useState(null)
+  const [page, setPage] = useState(1)
 
-  const statuses = ["Activa", "Borrador", "Archivada"]
+  // modal "Nueva"
+  const [showNewCat, setShowNewCat] = useState(false)
+  const [newCatName, setNewCatName] = useState("")
+  const [creatingCat, setCreatingCat] = useState(false)
 
-  const filteredCategories = categories.filter((category) => {
-    const matchesSearch = category.name.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesStatus = filterStatus === "Todas" || category.status === filterStatus
+  // modal "Editar"
+  const [showEditCat, setShowEditCat] = useState(false)
+  const [editCatName, setEditCatName] = useState("")
+  const [editCatId, setEditCatId] = useState(null)
+  const [updatingCat, setUpdatingCat] = useState(false)
 
-    return matchesSearch && matchesStatus
-  })
+  // galería y uploads
+  const [viewCatId, setViewCatId] = useState(null)
+  const [showUpload, setShowUpload] = useState(false)
+  const [uploadFiles, setUploadFiles] = useState([])
+  const [uploading, setUploading] = useState(false)
 
-  const deleteCategory = (categoryId) => {
-    if (confirm("¿Estás seguro de que quieres eliminar esta categoría?")) {
-      setCategories(categories.filter((category) => category.id !== categoryId))
+  // portada
+  const [coverUrls, setCoverUrls] = useState({})
+
+  // carga inicial
+  useEffect(() => {
+    fetchCategories()
+  }, [fetchCategories])
+
+  // actualizar portadas
+  useEffect(() => {
+    categories.forEach(cat => {
+      getGalleryItemsByCategoryRequest(cat.id)
+        .then(data => {
+          if (data.length) {
+            setCoverUrls(prev => ({
+              ...prev,
+              [cat.id]: data[data.length - 1].mediaUrl
+            }))
+          }
+        })
+        .catch(() => {})
+    })
+  }, [categories])
+
+  if (loadingCats) return <p className="p-6 text-lg">Cargando categorías…</p>
+  if (errorCats)   return <p className="p-6 text-red-600">{errorCats.message}</p>
+
+  // Filtrado + Paginación
+  const filteredCats = categories.filter(c =>
+    c.name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
+  const totalPages = Math.ceil(filteredCats.length / ITEMS_PER_PAGE)
+  const slice = filteredCats.slice((page - 1) * ITEMS_PER_PAGE, page * ITEMS_PER_PAGE)
+
+  // Crear categoría
+  const handleCreateCat = async e => {
+    e.preventDefault()
+    if (!newCatName.trim()) return
+    try {
+      setCreatingCat(true)
+      await createCategory({ name: newCatName.trim() })
+      Swal.fire({ icon: "success", title: "Categoría creada", timer: 1200, showConfirmButton: false })
+      setNewCatName("")
+      setShowNewCat(false)
+    } finally {
+      setCreatingCat(false)
     }
   }
 
-  const toggleStatus = (categoryId) => {
-    setCategories(
-      categories.map((category) =>
-        category.id === categoryId
-          ? { ...category, status: category.status === "Activa" ? "Borrador" : "Activa" }
-          : category,
-      ),
-    )
+  // Abrir modal editar
+  const openEditModal = cat => {
+    setEditCatId(cat.id)
+    setEditCatName(cat.name)
+    setShowEditCat(true)
   }
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Activa":
-        return "bg-green-100 text-green-800"
-      case "Borrador":
-        return "bg-yellow-100 text-yellow-800"
-      case "Archivada":
-        return "bg-gray-100 text-gray-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+  // Guardar edición
+  const handleEditCat = async e => {
+    e.preventDefault()
+    if (!editCatName.trim()) return
+    try {
+      setUpdatingCat(true)
+      await updateCategory(editCatId, { name: editCatName.trim() })
+      Swal.fire({ icon: "success", title: "Categoría renombrada", timer: 1200, showConfirmButton: false })
+      setShowEditCat(false)
+    } finally {
+      setUpdatingCat(false)
     }
   }
+
+  // Toggle ver/ocultar álbum
+  const toggleGallery = catId => {
+    if (viewCatId === catId) {
+      setViewCatId(null)
+    } else {
+      setViewCatId(catId)
+      fetchItemsByCategory(catId)
+    }
+    setShowUpload(false)
+  }
+
+  // Abrir modal subida
+  const openUploadModal = catId => {
+    setViewCatId(catId)
+    setShowUpload(true)
+  }
+
+  // Subir varias imágenes
+  const handleUpload = async () => {
+    if (!uploadFiles.length || !viewCatId) return
+    try {
+      setUploading(true)
+      await Promise.all(
+        uploadFiles.map(f => {
+          const form = new FormData()
+          form.append("media", f)
+          form.append("categoryId", String(viewCatId))
+          return uploadItem(form)
+        })
+      )
+      Swal.fire({ icon: "success", title: "Imágenes subidas", timer: 1200, showConfirmButton: false })
+      fetchItemsByCategory(viewCatId)
+      // refrescar portada
+      const data = await getGalleryItemsByCategoryRequest(viewCatId)
+      if (data.length) {
+        setCoverUrls(prev => ({ ...prev, [viewCatId]: data[data.length - 1].mediaUrl }))
+      }
+      setShowUpload(false)
+      setUploadFiles([])
+    } catch (err) {
+      Swal.fire("Error", err.message, "error")
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  // estadísticas
+  const totalImages = categories.reduce((sum, c) => sum + (c.imageCount ?? 0), 0)
+  const avgPerCat = categories.length ? Math.round(totalImages / categories.length) : 0
+
+  // categoría activa
+  const currentCategory = categories.find(c => c.id === viewCatId)
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+      {/* header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900">Gestión de Galería</h1>
-          <p className="text-gray-600">Administra las categorías y fotos de la galería</p>
+          <h1 className="text-3xl font-bold">Gestión de Galería</h1>
+          <p className="text-gray-600">Administra categorías y álbumes</p>
         </div>
-        <div className="flex space-x-2">
-          <Button onClick={() => setShowCreateForm(true)} className="bg-sapphire-700 hover:bg-sapphire-800">
-            <FolderPlus className="h-4 w-4 mr-2" />
-            Nueva Categoría
-          </Button>
-          <Button variant="outline">
-            <Upload className="h-4 w-4 mr-2" />
-            Subir Fotos
-          </Button>
-        </div>
+        <Button onClick={() => setShowNewCat(true)} className="bg-sapphire-700">
+          <FolderPlus className="h-4 w-4 mr-2" /> Nueva Categoría
+        </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Categorías</p>
-                <p className="text-2xl font-bold">{categories.length}</p>
-              </div>
-              <Images className="h-8 w-8 text-sapphire-600" />
+          <CardContent className="p-4 flex justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Categorías</p>
+              <p className="text-2xl font-bold">{categories.length}</p>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Categorías Activas</p>
-                <p className="text-2xl font-bold">{categories.filter((c) => c.status === "Activa").length}</p>
-              </div>
-              <Eye className="h-8 w-8 text-green-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Imágenes</p>
-                <p className="text-2xl font-bold">{categories.reduce((sum, c) => sum + c.imageCount, 0)}</p>
-              </div>
-              <Upload className="h-8 w-8 text-blue-600" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Promedio por Categoría</p>
-                <p className="text-2xl font-bold">
-                  {Math.round(categories.reduce((sum, c) => sum + c.imageCount, 0) / categories.length)}
-                </p>
-              </div>
-              <Images className="h-8 w-8 text-purple-600" />
-            </div>
+            <Images className="h-8 w-8 text-sapphire-600" />
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* filtros */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Buscar categorías..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md"
-            >
-              <option value="Todas">Todos los estados</option>
-              {statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
+        <CardContent className="p-4 flex gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Input
+              className="pl-10"
+              placeholder="Buscar categorías..."
+              value={searchTerm}
+              onChange={e => setSearchTerm(e.target.value)}
+            />
           </div>
         </CardContent>
       </Card>
 
-      {/* Categories Grid */}
+      {/* grid */}
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredCategories.map((category) => (
-          <Card key={category.id} className="overflow-hidden hover:shadow-lg transition-shadow group">
-            <div className="relative h-48 bg-gray-200">
-              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-              <div className="absolute top-4 right-4">
-                <Badge className={getStatusColor(category.status)}>{category.status}</Badge>
-              </div>
-              <div className="absolute bottom-4 left-4 right-4 text-white">
-                <h3 className="text-lg font-bold mb-1">{category.name}</h3>
-                <p className="text-sm opacity-90">{category.imageCount} fotos</p>
-              </div>
-            </div>
-
+        {slice.map(cat => (
+          <Card key={cat.id} className="overflow-visible hover:shadow-lg transition-shadow">
+            {/* portada */}
+            <div
+              className="relative h-48 bg-center bg-cover"
+              style={{
+                backgroundImage: coverUrls[cat.id]
+                  ? `url(${coverUrls[cat.id]})`
+                  : undefined
+              }}
+            />
             <CardContent className="p-4">
-              <p className="text-gray-600 text-sm mb-4">{category.description}</p>
-
-              <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                <span>Creada: {new Date(category.createdAt).toLocaleDateString("es-ES")}</span>
+              {/* nombre */}
+              <div className="text-lg font-bold text-gray-900 mb-4">
+                {cat.name}
               </div>
-
-              <div className="flex space-x-2">
-                <Button variant="outline" size="sm" className="flex-1 bg-transparent">
-                  <Eye className="h-4 w-4 mr-2" />
-                  Ver Fotos
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => toggleGallery(cat.id)}
+                >
+                  <Eye className="h-4 w-4 mr-1" />
+                  {viewCatId === cat.id ? "Ocultar Fotos" : "Ver Fotos"}
                 </Button>
-
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => openUploadModal(cat.id)}
+                >
+                  <Upload className="h-4 w-4 mr-1" /> Subir Fotos
+                </Button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button variant="outline" size="sm">
                       <MoreHorizontal className="h-4 w-4" />
                     </Button>
                   </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem>
-                      <Upload className="h-4 w-4 mr-2" />
-                      Subir Fotos
+                  <DropdownMenuContent className="z-10" align="end">
+                    <DropdownMenuItem onClick={() => openEditModal(cat)}>
+                      Editar
                     </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Edit className="h-4 w-4 mr-2" />
-                      Editar Categoría
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => toggleStatus(category.id)}>
-                      <Eye className="h-4 w-4 mr-2" />
-                      {category.status === "Activa" ? "Desactivar" : "Activar"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem>
-                      <Download className="h-4 w-4 mr-2" />
-                      Descargar Todas
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => deleteCategory(category.id)} className="text-red-600">
-                      <Trash2 className="h-4 w-4 mr-2" />
-                      Eliminar
-                    </DropdownMenuItem>
+                    {!coverUrls[cat.id] && (
+                      <DropdownMenuItem
+                        onClick={async () => {
+                          await deleteCategory(cat.id)
+                          if (viewCatId === cat.id) setViewCatId(null)
+                        }}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4 mr-1" /> Eliminar
+                      </DropdownMenuItem>
+                    )}
                   </DropdownMenuContent>
                 </DropdownMenu>
               </div>
             </CardContent>
           </Card>
         ))}
+        {!slice.length && (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <Images className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium">No hay categorías</h3>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {/* Create Category Form Modal */}
-      {showCreateForm && (
+      {/* modal nueva */}
+      {showNewCat && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <Card className="w-full max-w-md">
             <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>Nueva Categoría</CardTitle>
-                  <CardDescription>Crea una nueva categoría para organizar las fotos</CardDescription>
+              <CardTitle>Nueva Categoría</CardTitle>
+              <CardDescription>Solo nombre</CardDescription>
+            </CardHeader>
+            <form onSubmit={handleCreateCat}>
+              <CardContent className="space-y-4">
+                <Input
+                  value={newCatName}
+                  onChange={e => setNewCatName(e.target.value)}
+                  placeholder="Nombre de la categoría"
+                  required
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowNewCat(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={creatingCat}>
+                    {creatingCat ? "Creando…" : "Crear"}
+                  </Button>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => setShowCreateForm(false)}>
-                  ✕
-                </Button>
-              </div>
+              </CardContent>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* modal editar */}
+      {showEditCat && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Editar Categoría</CardTitle>
+              <CardDescription>Modifica el nombre</CardDescription>
+            </CardHeader>
+            <form onSubmit={handleEditCat}>
+              <CardContent className="space-y-4">
+                <Input
+                  value={editCatName}
+                  onChange={e => setEditCatName(e.target.value)}
+                  placeholder="Nuevo nombre"
+                  required
+                />
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setShowEditCat(false)}>
+                    Cancelar
+                  </Button>
+                  <Button type="submit" disabled={updatingCat}>
+                    {updatingCat ? "Guardando…" : "Guardar"}
+                  </Button>
+                </div>
+              </CardContent>
+            </form>
+          </Card>
+        </div>
+      )}
+
+      {/* modal subir */}
+      {showUpload && viewCatId != null && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <Card className="w-full max-w-md">
+            <CardHeader>
+              <CardTitle>Subir Fotos</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Nombre de la Categoría</label>
-                <Input placeholder="Ej: Conferencia 2024" required />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Descripción</label>
-                <Input placeholder="Descripción breve de la categoría" />
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Estado</label>
-                <select className="w-full px-3 py-2 border border-gray-300 rounded-md">
-                  <option value="Borrador">Borrador</option>
-                  <option value="Activa">Activa</option>
-                </select>
-              </div>
-
-              <div className="flex space-x-2 pt-4">
-                <Button className="bg-sapphire-700 hover:bg-sapphire-800 flex-1">Crear Categoría</Button>
-                <Button variant="outline" onClick={() => setShowCreateForm(false)}>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={e => setUploadFiles(Array.from(e.target.files || []))}
+              />
+              {uploadFiles.length > 0 && (
+                <ul className="max-h-32 overflow-auto space-y-1 text-sm text-gray-700">
+                  {uploadFiles.map((f,i) => <li key={i}>• {f.name}</li>)}
+                </ul>
+              )}
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowUpload(false)
+                    setUploadFiles([])
+                  }}
+                >
                   Cancelar
+                </Button>
+                <Button onClick={handleUpload} disabled={uploading || !uploadFiles.length}>
+                  {uploading ? "Subiendo…" : `Subir (${uploadFiles.length})`}
                 </Button>
               </div>
             </CardContent>
@@ -300,24 +412,51 @@ export default function GalleryPage() {
         </div>
       )}
 
-      {filteredCategories.length === 0 && (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Images className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron categorías</h3>
-            <p className="text-gray-500 mb-4">
-              {searchTerm || filterStatus !== "Todas"
-                ? "Intenta ajustar los filtros de búsqueda"
-                : "Comienza creando tu primera categoría"}
-            </p>
-            {!searchTerm && filterStatus === "Todas" && (
-              <Button onClick={() => setShowCreateForm(true)} className="bg-sapphire-700 hover:bg-sapphire-800">
-                <FolderPlus className="h-4 w-4 mr-2" />
-                Crear Primera Categoría
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+      {/* Gallery Items */}
+      {viewCatId != null && (
+        <div className="mt-6">
+          <h2 className="text-2xl font-semibold mb-4">
+            Fotos de la categoría{" "}
+            <span className="capitalize">{currentCategory?.name}</span>
+          </h2>
+          {loadingItems ? (
+            <p>Cargando fotos…</p>
+          ) : errorItems ? (
+            <p className="text-red-600">{errorItems.message}</p>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {items.map(it => (
+                <Card key={it.id} className="overflow-hidden hover:shadow-lg transition">
+                  <div className="h-32 bg-gray-100 overflow-hidden">
+                    <img src={it.mediaUrl} alt="" className="w-full h-full object-cover" />
+                  </div>
+                  <CardContent>
+                    <div className="flex justify-between items-center mt-2">
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={async () => {
+                          await deleteItem(it.id)
+                          fetchItemsByCategory(viewCatId)
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                      <a
+                        href={it.mediaUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm text-sapphire-600 flex items-center"
+                      >
+                        <Eye className="h-4 w-4 mr-1" /> Ver
+                      </a>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   )

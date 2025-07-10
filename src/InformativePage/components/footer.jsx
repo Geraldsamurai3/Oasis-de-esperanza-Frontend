@@ -8,6 +8,9 @@ export default function Footer() {
     { nombre: "Eventos", href: "/eventos" },
     { nombre: "Pastores", href: "/pastores" },
   ]
+   
+   const logoUrl =
+    "https://res.cloudinary.com/dss0mxa8r/image/upload/v1751781205/Oasis_azul_sin_fondo_ltywwf.png"
 
   const horarios = ["Domingo 9:00 AM", "Domingo 6:00 PM", "Miércoles 7:00 PM"]
 
@@ -19,8 +22,14 @@ export default function Footer() {
         <div className="grid md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center space-x-2 mb-4">
-              <Cross className="h-8 w-8 text-sapphire-400" />
-              <span className="text-xl font-bold">Oasis de Esperanza</span>
+              <img
+            src={logoUrl}
+            alt="Logo Oasis de Esperanza"
+            className="h-9 w-9 sm:h-12 sm:w-12 object-contain"
+              />
+              <span className="text-lg sm:text-xl font-bold text-white-900">
+            Oasis de Esperanza
+          </span>
             </div>
             <p className="text-gray-400 mb-4">
               Una comunidad de fe comprometida con transformar vidas a través del amor de Cristo.

@@ -1,347 +1,281 @@
+// src/AdministrativePage/components/UsersPage.jsx
 "use client"
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/InformativePage/components/ui/card"
+import React, { useState, useMemo } from "react"
+import Swal from "sweetalert2"
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/InformativePage/components/ui/card"
 import { Button } from "@/InformativePage/components/ui/button"
 import { Input } from "@/InformativePage/components/ui/input"
 import { Badge } from "@/InformativePage/components/ui/badge"
 import {
   Plus,
   Search,
-  Users,
+  Users as UsersIcon,
   Shield,
   UserCheck,
   UserX,
-  Edit,
   Trash2,
   MoreHorizontal,
   Mail,
   Phone,
   Calendar,
 } from "lucide-react"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/InformativePage/components/ui/dropdown-menu"
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@/InformativePage/components/ui/dropdown-menu"
+import { useUsers } from "../hooks/useUsers"
+import CreateUserForm from "../components/CreateUserForm"
+
+const ITEMS_PER_PAGE = 10
 
 export default function UsersPage() {
-  const [users, setUsers] = useState([
-    {
-      id: 1,
-      name: "Pastor Arturo Alvarado",
-      email: "pastor.arturo@oasisesperanza.org",
-      phone: "+1 (555) 123-4567",
-      role: "Pastor",
-      status: "Activo",
-      lastLogin: "2024-01-15T10:30:00Z",
-      createdAt: "2023-01-01T00:00:00Z",
-      permissions: ["admin", "events", "contacts", "users"],
-    },
-    {
-      id: 2,
-      name: "Pastora Marianela Bolaños",
-      email: "pastora.marianela@oasisesperanza.org",
-      phone: "+1 (555) 123-4568",
-      role: "Pastora",
-      status: "Activo",
-      lastLogin: "2024-01-14T16:45:00Z",
-      createdAt: "2023-01-01T00:00:00Z",
-      permissions: ["events", "contacts", "email"],
-    },
-    {
-      id: 3,
-      name: "Juan Pérez",
-      email: "juan.perez@oasisesperanza.org",
-      phone: "+1 (555) 987-6543",
-      role: "Diácono",
-      status: "Activo",
-      lastLogin: "2024-01-13T09:15:00Z",
-      createdAt: "2023-06-15T00:00:00Z",
-      permissions: ["events", "gallery"],
-    },
-    {
-      id: 4,
-      name: "María González",
-      email: "maria.gonzalez@oasisesperanza.org",
-      phone: "+1 (555) 456-7890",
-      role: "Secretaria",
-      status: "Activo",
-      lastLogin: "2024-01-12T14:20:00Z",
-      createdAt: "2023-03-10T00:00:00Z",
-      permissions: ["contacts", "email"],
-    },
-    {
-      id: 5,
-      name: "Carlos Rodríguez",
-      email: "carlos.rodriguez@oasisesperanza.org",
-      phone: "+1 (555) 321-0987",
-      role: "Tesorero",
-      status: "Suspendido",
-      lastLogin: "2024-01-05T11:30:00Z",
-      createdAt: "2023-02-20T00:00:00Z",
-      permissions: ["donations"],
-    },
-  ])
+  const {
+    users,
+    loading,
+    error,
+    toggleBlockUser,
+    deleteUser,
+  } = useUsers()
 
-  const [searchTerm, setSearchTerm] = useState("")
-  const [filterRole, setFilterRole] = useState("Todos")
-  const [filterStatus, setFilterStatus] = useState("Todos")
+  const [searchTerm, setSearchTerm]         = useState("")
+  const [filterRole, setFilterRole]         = useState("Todos")
+  const [filterStatus, setFilterStatus]     = useState("Todos")
+  const [currentPage, setCurrentPage]       = useState(1)
   const [showCreateForm, setShowCreateForm] = useState(false)
 
-  const roles = ["Pastor", "Pastora", "Diácono", "Secretaria", "Tesorero", "Voluntario"]
-  const statuses = ["Activo", "Inactivo", "Suspendido"]
-  const allPermissions = [
-    "admin",
-    "events",
-    "missions",
-    "users",
-    "contacts",
-    "gallery",
-    "donations",
-    "email",
-    "settings",
-  ]
+  // Roles y estados dinámicos
+  const roles = useMemo(
+    () => ["Todos", ...new Set(users.map((u) => u.role))],
+    [users]
+  )
+  const statuses = ["Todos", "Activo", "Suspendido"]
 
-  const filteredUsers = users.filter((user) => {
-    const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
-    const matchesRole = filterRole === "Todos" || user.role === filterRole
-    const matchesStatus = filterStatus === "Todos" || user.status === filterStatus
+  // Estadísticas
+  const totalUsers     = users.length
+  const activeUsers    = users.filter((u) => !u.isBlocked).length
+  const suspendedUsers = users.filter((u) => u.isBlocked).length
+  const adminCount     = users.filter((u) => u.role === "Admin").length
 
-    return matchesSearch && matchesRole && matchesStatus
-  })
+  // Formatea fechas DD/MM/YYYY
+  const formatDate = (iso) =>
+    new Date(iso).toLocaleDateString("es-ES", {
+      year:  "numeric",
+      month: "short",
+      day:   "numeric",
+    })
 
-  const toggleUserStatus = (userId) => {
-    setUsers(
-      users.map((user) =>
-        user.id === userId ? { ...user, status: user.status === "Activo" ? "Suspendido" : "Activo" } : user,
-      ),
-    )
-  }
+  // Filtrado memoizado
+  const filtered = useMemo(() => {
+    return users.filter((u) => {
+      const text = `${u.firstName} ${u.lastName} ${u.email}`.toLowerCase()
+      if (searchTerm && !text.includes(searchTerm.toLowerCase())) return false
+      if (filterRole !== "Todos" && u.role !== filterRole) return false
+      if (
+        filterStatus !== "Todos" &&
+        ((filterStatus === "Activo" && u.isBlocked) ||
+         (filterStatus === "Suspendido" && !u.isBlocked))
+      ) return false
+      return true
+    })
+  }, [users, searchTerm, filterRole, filterStatus])
 
-  const deleteUser = (userId) => {
-    if (confirm("¿Estás seguro de que quieres eliminar este usuario?")) {
-      setUsers(users.filter((user) => user.id !== userId))
-    }
-  }
+  // Paginación
+  const totalPages = Math.ceil(filtered.length / ITEMS_PER_PAGE)
+  const pageSlice  = filtered.slice(
+    (currentPage - 1) * ITEMS_PER_PAGE,
+    currentPage * ITEMS_PER_PAGE
+  )
 
-  const getStatusColor = (status) => {
-    switch (status) {
-      case "Activo":
-        return "bg-green-100 text-green-800"
-      case "Inactivo":
-        return "bg-gray-100 text-gray-800"
-      case "Suspendido":
-        return "bg-red-100 text-red-800"
-      default:
-        return "bg-gray-100 text-gray-800"
-    }
-  }
+  const getStatusColor = (blocked) =>
+    blocked ? "bg-red-100 text-red-800" : "bg-green-100 text-green-800"
 
   const getRoleColor = (role) => {
     switch (role) {
-      case "Pastor":
-      case "Pastora":
-        return "bg-purple-100 text-purple-800"
-      case "Diácono":
-        return "bg-blue-100 text-blue-800"
-      case "Secretaria":
-        return "bg-green-100 text-green-800"
-      case "Tesorero":
-        return "bg-yellow-100 text-yellow-800"
-      default:
-        return "bg-gray-100 text-gray-800"
+      case "Admin": return "bg-purple-100 text-purple-800"
+      default:      return "bg-gray-100 text-gray-800"
     }
   }
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("es-ES", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
+  // Acción de bloqueo/desbloqueo
+  const handleToggleStatus = async (u) => {
+    await toggleBlockUser(u.id)
+    Swal.fire({
+      icon:    u.isBlocked ? "success" : "success",
+      title:   u.isBlocked ? "Usuario activado" : "Usuario suspendido",
+      timer:   1500,
+      showConfirmButton: false,
     })
   }
 
-  const formatLastLogin = (dateString) => {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffTime = Math.abs(now - date)
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-    if (diffDays === 1) return "Hace 1 día"
-    if (diffDays < 7) return `Hace ${diffDays} días`
-    if (diffDays < 30) return `Hace ${Math.ceil(diffDays / 7)} semanas`
-    return formatDate(dateString)
+  const handleDelete = async (id) => {
+    const res = await Swal.fire({
+      title:             "¿Eliminar usuario?",
+      icon:              "warning",
+      showCancelButton:  true,
+      confirmButtonText: "Sí, eliminar",
+    })
+    if (res.isConfirmed) {
+      await deleteUser(id)
+      Swal.fire({
+        icon:              "success",
+        title:             "Usuario eliminado",
+        timer:             1500,
+        showConfirmButton: false,
+      })
+    }
   }
+
+  if (loading) return <p className="p-6 text-lg">Cargando usuarios…</p>
+  if (error)   return <p className="p-6 text-red-600 text-lg">Error: {error.message}</p>
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center space-y-4 sm:space-y-0">
+      {/* Título y descripción */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Gestión de Usuarios</h1>
           <p className="text-gray-600">Administra los usuarios del sistema</p>
         </div>
-        <Button onClick={() => setShowCreateForm(true)} className="bg-sapphire-700 hover:bg-sapphire-800">
-          <Plus className="h-4 w-4 mr-2" />
-          Nuevo Usuario
+        <Button
+          onClick={() => setShowCreateForm(true)}
+          className="bg-sapphire-700 hover:bg-sapphire-800 text-white"
+        >
+          <Plus className="h-4 w-4 mr-2" /> Nuevo Usuario
         </Button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {/* Estadísticas */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Total Usuarios</p>
-                <p className="text-2xl font-bold">{users.length}</p>
-              </div>
-              <Users className="h-8 w-8 text-sapphire-600" />
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Total Usuarios</p>
+              <p className="text-2xl font-bold">{totalUsers}</p>
             </div>
+            <UsersIcon className="h-8 w-8 text-sapphire-600" />
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Usuarios Activos</p>
-                <p className="text-2xl font-bold">{users.filter((u) => u.status === "Activo").length}</p>
-              </div>
-              <UserCheck className="h-8 w-8 text-green-600" />
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Activos</p>
+              <p className="text-2xl font-bold">{activeUsers}</p>
             </div>
+            <UserCheck className="h-8 w-8 text-green-600" />
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Administradores</p>
-                <p className="text-2xl font-bold">{users.filter((u) => u.permissions.includes("admin")).length}</p>
-              </div>
-              <Shield className="h-8 w-8 text-purple-600" />
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Administradores</p>
+              <p className="text-2xl font-bold">{adminCount}</p>
             </div>
+            <Shield className="h-8 w-8 text-purple-600" />
           </CardContent>
         </Card>
         <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">Suspendidos</p>
-                <p className="text-2xl font-bold">{users.filter((u) => u.status === "Suspendido").length}</p>
-              </div>
-              <UserX className="h-8 w-8 text-red-600" />
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-sm text-gray-600">Suspendidos</p>
+              <p className="text-2xl font-bold">{suspendedUsers}</p>
             </div>
+            <UserX className="h-8 w-8 text-red-600" />
           </CardContent>
         </Card>
       </div>
 
-      {/* Filters */}
+      {/* Filtros */}
       <Card>
-        <CardContent className="p-4">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Buscar usuarios..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
-              </div>
-            </div>
-            <select
-              value={filterRole}
-              onChange={(e) => setFilterRole(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md"
-            >
-              <option value="Todos">Todos los roles</option>
-              {roles.map((role) => (
-                <option key={role} value={role}>
-                  {role}
-                </option>
-              ))}
-            </select>
-            <select
-              value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md"
-            >
-              <option value="Todos">Todos los estados</option>
-              {statuses.map((status) => (
-                <option key={status} value={status}>
-                  {status}
-                </option>
-              ))}
-            </select>
+        <CardContent className="p-4 flex flex-col sm:flex-row gap-4">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <Input
+              className="pl-10"
+              placeholder="Buscar usuarios..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
+          <select
+            className="px-3 py-2 border rounded-md"
+            value={filterRole}
+            onChange={(e) => setFilterRole(e.target.value)}
+          >
+            {roles.map((r) => (
+              <option key={r} value={r}>{r}</option>
+            ))}
+          </select>
+          <select
+            className="px-3 py-2 border rounded-md"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+          >
+            {statuses.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
         </CardContent>
       </Card>
 
-      {/* Users List */}
+      {/* Lista de usuarios */}
       <div className="grid gap-4">
-        {filteredUsers.map((user) => (
-          <Card key={user.id} className="hover:shadow-lg transition-shadow">
+        {pageSlice.map((u) => (
+          <Card key={u.id} className="hover:shadow-lg transition-shadow">
             <CardContent className="p-6">
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between space-y-4 lg:space-y-0">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="flex-1">
                   <div className="flex items-center space-x-3 mb-2">
                     <div className="w-10 h-10 bg-sapphire-100 rounded-full flex items-center justify-center">
-                      <span className="text-sapphire-700 font-medium">{user.name.charAt(0)}</span>
+                      <span className="text-sapphire-700 font-medium">
+                        {u.firstName.charAt(0)}
+                      </span>
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900">{user.name}</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">
+                        {u.firstName} {u.lastName}
+                      </h3>
                       <div className="flex items-center space-x-2">
-                        <Badge className={getRoleColor(user.role)}>{user.role}</Badge>
-                        <Badge className={getStatusColor(user.status)}>{user.status}</Badge>
+                        <Badge className={getRoleColor(u.role)}>{u.role}</Badge>
+                        <Badge className={getStatusColor(u.isBlocked)}>
+                          {u.isBlocked ? "Suspendido" : "Activo"}
+                        </Badge>
                       </div>
                     </div>
                   </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Mail className="h-4 w-4 mr-2" />
-                      {user.email}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-500">
+                    <div className="flex items-center">
+                      <Mail className="h-4 w-4 mr-2" /> {u.email}
                     </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Phone className="h-4 w-4 mr-2" />
-                      {user.phone}
+                    <div className="flex items-center">
+                      <Phone className="h-4 w-4 mr-2" /> {u.phone || "—"}
                     </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Calendar className="h-4 w-4 mr-2" />
-                      Último acceso: {formatLastLogin(user.lastLogin)}
-                    </div>
-                    <div className="flex items-center text-sm text-gray-500">
-                      <Users className="h-4 w-4 mr-2" />
-                      Miembro desde: {formatDate(user.createdAt)}
-                    </div>
-                  </div>
-
-                  <div className="mt-3">
-                    <p className="text-sm font-medium text-gray-700 mb-2">Permisos:</p>
-                    <div className="flex flex-wrap gap-1">
-                      {user.permissions.map((permission) => (
-                        <Badge key={permission} variant="outline" className="text-xs">
-                          {permission}
-                        </Badge>
-                      ))}
+                    <div className="flex items-center">
+                      <Calendar className="h-4 w-4 mr-2" /> Registrado: {formatDate(u.createdAt)}
                     </div>
                   </div>
                 </div>
-
                 <div className="flex items-center space-x-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => toggleUserStatus(user.id)}
+                    onClick={() => handleToggleStatus(u)}
                     className={
-                      user.status === "Activo"
-                        ? "text-red-600 hover:text-red-700"
-                        : "text-green-600 hover:text-green-700"
+                      u.isBlocked
+                        ? "text-green-600 hover:text-green-700"
+                        : "text-red-600 hover:text-red-700"
                     }
                   >
-                    {user.status === "Activo" ? "Suspender" : "Activar"}
+                    {u.isBlocked ? "Activar" : "Suspender"}
                   </Button>
-
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button variant="outline" size="sm">
@@ -349,17 +283,11 @@ export default function UsersPage() {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
-                      <DropdownMenuItem>
-                        <Edit className="h-4 w-4 mr-2" />
-                        Editar Usuario
-                      </DropdownMenuItem>
-                      <DropdownMenuItem>
-                        <Shield className="h-4 w-4 mr-2" />
-                        Gestionar Permisos
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => deleteUser(user.id)} className="text-red-600">
-                        <Trash2 className="h-4 w-4 mr-2" />
-                        Eliminar
+                      <DropdownMenuItem
+                        onClick={() => handleDelete(u.id)}
+                        className="text-red-600"
+                      >
+                        <Trash2 className="h-4 w-4 mr-2" /> Eliminar
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -368,88 +296,59 @@ export default function UsersPage() {
             </CardContent>
           </Card>
         ))}
-      </div>
-
-      {/* Create User Form Modal */}
-      {showCreateForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <Card className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle>Crear Nuevo Usuario</CardTitle>
-                  <CardDescription>Completa la información del nuevo usuario del sistema</CardDescription>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => setShowCreateForm(false)}>
-                  ✕
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Nombre Completo</label>
-                  <Input placeholder="Nombre del usuario" required />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Email</label>
-                  <Input type="email" placeholder="usuario@oasisesperanza.org" required />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Teléfono</label>
-                  <Input type="tel" placeholder="+1 (555) 123-4567" />
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">Rol</label>
-                  <select className="w-full px-3 py-2 border border-gray-300 rounded-md" required>
-                    <option value="">Seleccionar rol</option>
-                    {roles.map((role) => (
-                      <option key={role} value={role}>
-                        {role}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Permisos</label>
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                  {allPermissions.map((permission) => (
-                    <label key={permission} className="flex items-center space-x-2">
-                      <input type="checkbox" className="rounded" />
-                      <span className="text-sm">{permission}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex space-x-2 pt-4">
-                <Button className="bg-sapphire-700 hover:bg-sapphire-800">Crear Usuario</Button>
-                <Button variant="outline" onClick={() => setShowCreateForm(false)}>
-                  Cancelar
-                </Button>
-              </div>
+        {filtered.length === 0 && (
+          <Card>
+            <CardContent className="p-12 text-center">
+              <UsersIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No hay usuarios</h3>
             </CardContent>
           </Card>
+        )}
+      </div>
+
+      {/* Paginación */}
+      {totalPages > 1 && (
+        <div className="flex justify-center items-center space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((p) => p - 1)}
+          >
+            Anterior
+          </Button>
+          {Array.from({ length: totalPages }, (_, i) => (
+            <button
+              key={i + 1}
+              className={`px-3 py-1 rounded ${
+                currentPage === i + 1
+                  ? "bg-sapphire-600 text-white"
+                  : "bg-gray-200 text-gray-700"
+              }`}
+              onClick={() => setCurrentPage(i + 1)}
+            >
+              {i + 1}
+            </button>
+          ))}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((p) => p + 1)}
+          >
+            Siguiente
+          </Button>
         </div>
       )}
 
-      {filteredUsers.length === 0 && (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Users className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No se encontraron usuarios</h3>
-            <p className="text-gray-500">
-              {searchTerm || filterRole !== "Todos" || filterStatus !== "Todos"
-                ? "Intenta ajustar los filtros de búsqueda"
-                : "Comienza creando tu primer usuario"}
-            </p>
-          </CardContent>
-        </Card>
+      {/* Modal Crear Usuario */}
+      {showCreateForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <CreateUserForm
+            onSuccess={() => setShowCreateForm(false)}
+            onCancel={() => setShowCreateForm(false)}
+          />
+        </div>
       )}
     </div>
   )
